@@ -4,17 +4,62 @@ Utilities for SHA python version
 """ 
 import os, sys
 import numpy as np 
-import matplotlib.pyplot as plt 
 
 import MySQLdb as mdb
+
 from pynga.utils import * 
 from pynga import * 
 
-from my_util.numer import * 
-
-
 # intensity measure types 
 IMTdict = {'-1.0':'PGA', '-2.0':'PGV', 'T':'PSA'}
+
+
+def time_integral( ft, a, b, h, met = 'Trapezoid' ):
+    """
+    Compute numerical integral
+    Input:
+	ft: input time serise
+	a: lower integration limit
+	b: higher integration limit
+	h: time interval
+	met: method to do the numerical integration
+    Output:
+        integral
+    """
+    #nt1 = int( a/h + 1.0 ); nt2 = int( b/h + 1.0 )
+    #f = ft[nt1:nt2]
+    f = ft
+    sum = 0.0 
+
+    if met == 'Trapezoid':
+
+	n = int( ( b - a ) / h +1)
+	sum = 0.5 * ( f[0] + f[n-1] ) 
+	
+	for i in xrange( 1, n-1 ):
+	    sum = sum + f[i]
+	
+	sum = sum * h
+
+    elif met == 'Simpson':
+        
+	n = int( (b-a)/h+1 )
+
+	sum_odd = f[1]
+	sum_even = 0.0
+	sum = f[0] + f[n-1]
+	
+	for i in xrange( 1, int( n/2 ) ): 
+	    sum_even = sum_even + f[2*i]
+	    sum_odd = sum_odd + f[2*i+1]
+        
+	sum_odd = 4.*sum_odd
+	sum_even = 2.*sum_even
+
+	sum = h/3 * ( sum + sum_odd + sum_even )
+    
+    return sum
+
 
 def GaussianDistribution(x,mu=0,sigma=1):
     A = x-mu
@@ -439,7 +484,7 @@ class PSHA:
 
 if __name__ == '__main__':
 
-    opt = sys.argv[1]  
+    opt = sys.argv[1]     # CalcHC, PlotHC
 
     SiteInfo = {'SiteName':'STNI',}
     ERFinfo = (35,5,3,1)
@@ -457,6 +502,8 @@ if __name__ == '__main__':
 	P.HazardCurveCalc(IMLs,SiteData)
     
     if opt == 'PlotHC':
+	
+	import matplotlib.pyplot as plt 
 	# Plot Comparison of Hazard Curves (with CyberShake)
 	IMRs = ['CyberShake','CB08','BA08','CY08','AS08']
 	clrs = ['k','#FFC0CB','b','g','#FFA500']
