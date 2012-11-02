@@ -1,0 +1,14 @@
+Package for probabilistic seismic hazard analysis (PSHA) 
+
+IMRs:
+CyberShake MySQLdb python package is required 
+NGA models (4), the pynga package is required
+
+ERFs: 
+UCERF2.0 
+
+Utilities: 
+ Hazard Curve Calculation and Visualization 
+
+
+
