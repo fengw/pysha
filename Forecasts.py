@@ -47,13 +47,16 @@ class UCERF2Database:
 	SourceInfo0 = {}
 	for isid in xrange( len(Sids) ): 
 	    skey = '%s'%isid 
+	    SourceInfo0[skey] = {}
 	    query = 'Select Rupture_ID from Ruptures where ERF_ID=%s and Source_ID=%s'%(self.erf_id,skey)
 	    cursor.execute( query ) 
 	    rids = cursor.fetchall() 
-	    SourceInfo0[skey] = len(rids)
-	
+	    SourceInfo0[skey]['Nrupture'] = len(rids)
+	    query = 'Select Source_Name from Ruptures where ERF_ID=%s and Source_ID=%s and Rupture_ID = 0'%(self.erf_id,skey)
+	    cursor.execute( query ) 
+	    Sname = cursor.fetchall() 
+	    SourceInfo0[skey]['SourceName'] = Sname[0][0]
 	return SourceInfo0 
-
 
 
 

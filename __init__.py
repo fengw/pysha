@@ -7,7 +7,6 @@ import Forecasts
 import IMRs
 import SHA 
 import Sites
-
 from utils import * 
 
 wrk = '/Users/fengw/local/pylib/pysha'
@@ -54,9 +53,6 @@ if __name__ == '__main__':
 	SiteData = datapth + 'Sites/cs_site_types.txt'
 	P.HazardCurveCalc(IMLs,SiteInfo,SiteData,MetaPth = MetaPth)
     
-    if opt == 'Disagg':
-	pass
-
 
     if opt == 'PlotHC':
 

@@ -185,35 +185,103 @@ class PSHA:
 	return PoE, IMLs 
     
 
-    def Disaggregation(IML, Sites, ProbThresh=1.e-4):
+    def Disaggregation(self, SourceDisagg, RuptureDisagg, IML, CyberShakeDatabase, SiteName, SiteData=None,PoE=None, IMLs=None, DisaggMeta = './DisaggMeta_CurrentStation.txt'):
 	""" 
-	Disaggregation of various parameters 
+	Disaggregation of CyberShake for one site
 	refer to OpenSHA and Ting Lin and Jack Baker
 	"""
-	if self.IMR == 'CyberShake': 
-	    if SiteName not in Sites.keys(): 
-		print 'SiteName is not in the CyberShake Sites List'
-		raise ValueError 
-	    IMs = Database.ExtractCyberShakeIMs(SiteName) 
-	    rate = 0.0 
-	    for sid in IMs.keys():
-		skey = '%s'%sid
-		if self.SourceType == 'NonPoisson':
-		    Prob1 = 0.0
-		for rid in IMs[skey].keys(): 
-		    srkey = '%s,%s'%(sid,rid) 
-		    rkey = '%s'%rid 
-		    NL = len(IMs[skey][rkey])
-		    NIML = len((np.array(IMs[skey][rkey])>=IML).nonzero()[0])
-		    ProbIMTlgIML = NIML*1.0/NL 
-		    condProb[sr_key] = ProbIMTlgIML
-		    RupProb = RupProbs[srkey] 
+	stanam = SiteName
+
+	SourceDisagg[stanam] = {}
+	RuptureDisagg[stanam] = {}
+	
+	SourceDisagg0 = {} 
+	RuptureDisagg0 = {}
+	if not os.path.exists( DisaggMeta ):
+
+	    if self.IMR == 'CyberShake': 
+		if SiteData != None: 
+		    CS_Sites = Sites.CyberShakeSites( SiteData )
+		    if SiteName not in CS_Sites.keys(): 
+			print 'SiteName is not in the CyberShake Sites List'
+			raise ValueError 
+
+		# read all IMs (both for Disagg and Hazard Curves)
+		print 'IM extraction begins'
+		IMs = CyberShakeDatabase.ExtractIMs(SiteName)
+		print 'IM extraction ends'
+
+		if IML != 0: 
 		    
-		    if self.SourceType == 'NonPoisson': 
-			Prob1 += ProbIMTlgIML * RupProb 
+		    fid = open(DisaggMeta,'w')
+		    fid.write('#SourceID RuptureID SourceDisagg RuptureDisagg\n')
+		    
+		    # disaggregate directly 
+		    TotalRate = 0.0
+		    for sid in IMs.keys():
+			skey = '%s'%sid
+			SourceRate = 0.0
+			for rid in IMs[skey].keys(): 
+			    srkey = '%s,%s'%(sid,rid) 
+			    rkey = '%s'%rid 
+			    
+			    NL = len(IMs[skey][rkey])
+			    NIML = len((np.array(IMs[skey][rkey])>=IML).nonzero()[0])
+			    ProbIMTlgIML = NIML*1.0/NL 
+			    RupProb = self.RupProbs[srkey] 
+			    rate = -np.log( 1- RupProb ) * ProbIMTlgIML   # rate for each rupture 
+			    #print 'Rate: ', rate
+			    SourceRate += rate 
+			    TotalRate += rate 
+			    RuptureDisagg0[srkey] = rate
+			SourceDisagg0[skey] = SourceRate
+		    #print 'Total Rate: ', TotalRate
+		    #raw_input() 
+
+		    for skey in IMs.keys(): 
+			if TotalRate == 0.0: 
+			    SourceDisagg0[skey] = 0.0 
+			else: 
+			    SourceDisagg0[skey] = SourceDisagg0[skey] / TotalRate
+			for rkey in IMs[skey].keys(): 
+			    srkey = '%s,%s'%(skey,rkey)
+			    if TotalRate == 0.0:
+				RuptureDisagg0[srkey] = 0.0 
+			    else: 
+				RuptureDisagg0[srkey] /= TotalRate 
+			    fid.write('%s %s %s %s\n'%(skey,rkey,SourceDisagg0[skey],RuptureDisagg0[srkey])) 
+		    fid.close()
+
+		else: 
+		    if PoE != None: 
+			if IMLs != None: 
+			    pass
+			else: 
+			    print 'You should specify IMLs list to compute Hazard Curve' 
+			    raise ValueError
 		    else: 
-			PoE0 *= (1-RupProb)**(ProbIMTlgIML)
-		if self.SourceType == 'NonPoisson':
-		    PoE0 *= (1.0 - Prob1)
-	    PoE.append( 1.0 - PoE0 )
+			print 'You should specify PoE when IML = 0' 
+			raise ValueError 
+	else: 
+	    # read from file :
+	    # attention to those nan (total rate == 0)
+	    data = np.loadtxt( DisaggMeta, skiprows=1 ) 
+	    for irow in xrange( len(data) ): 
+		sid,rid,tmp1,tmp2 = data[irow]
+		if np.isnan(tmp1):
+		    # when total rate is 0.0, this will give you nan /TotalRate
+		    # the reason is that your IML is too high for specified site (all source will not make to IML)  
+		    # In this situation, the disaggregation will be 0.0
+		    tmp1 = 0.0 
+		    tmp2 = 0.0
+		skey = '%s'%(int(sid)) 
+		rkey = '%s'%(int(rid)) 
+		srkey = '%s,%s'%(skey,rkey)
+		SourceDisagg0[skey] = tmp1 
+		RuptureDisagg0[srkey] = tmp2
+	
+	SourceDisagg[stanam] = SourceDisagg0 
+	RuptureDisagg[stanam] = RuptureDisagg0 
+       
+        return SourceDisagg, RuptureDisagg 
 
